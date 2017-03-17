@@ -10,13 +10,27 @@ app.get('/', (req, res, next) => {
   // next();
 });
 
+app.get('/pets', (req, res, next) => {
+  const db = dbInstance();
+  const selectStatement = 'SELECT * FROM pets';
+  const selectParams = [];
+  const selectCallback = ((error, rows) => {
+    if (!rows) {
+      res.status(404).send({code: 404, error: 'Not found' });
+    } else {
+      res.send(rows);
+    }
+    next();
+  });
+  db.all(selectStatement, selectParams, selectCallback);
+});
+
 app.get('/pets/:id', (req, res, next) => {
   const { id } = req.params;
   const db = dbInstance(); // TODO: get this innerjoin working with the sql library
   const selectStatement = 'SELECT pets.type_id, pets.breed_id, types.name, breeds.name, pets.name, pets.location, pets.latitude, pets.longitude FROM pets JOIN breeds ON pets.breed_id = breeds.id JOIN types ON pets.type_id = types.id WHERE pets.id = ?';
   const selectParams = [ id ];
   const selectCallback = ((error, row) => {
-    console.log(row);
     if (!row) {
       res.status(404).send({code: 404, error: 'Not found' });
     } else {
