@@ -1,6 +1,82 @@
-const express = require('express');
+const express     = require('express');
+const bodyParser  = require('body-parser');
+const sqlite3     = require('sqlite3').verbose();
+
 const app = express();
-const sqlite3 = require('sqlite3').verbose();
+
+app.use(bodyParser.json());
+// app.use((req, res, next) => {
+//   // express needs a little nudge.. i guess...
+//   console.log('middleware is draining...');
+//   next();
+// });
+
+app.get('/', (req, res) => {
+  res.send('Hello world!');
+});
+
+app.post('/pets', (req, res, next) => {
+  const db = dbInstance();
+  const { name, type, breed, location, latitude, longitude } = req.body;
+
+  let duplicateCaught = false;
+  // IS THERE ALREADY A RECORD?
+  // TODO: actually refactor to get OUT OF HERE when there is another record of same
+  const selectStatement = 'SELECT * FROM pets WHERE name = ? AND latitude = ? AND longitude = ? LIMIT 1';
+  const selectParams = [ name, latitude, longitude];
+  const selectCallback = ( (err, row) => {
+    if (row) {
+      db.close();
+      console.log("Sending 409 Already Exists");
+      res.status(409).send("already exists");
+      // and, somehow get OUT of here...
+      duplicateCaught = true;
+    }
+  });
+  db.serialize(() => {
+    db.get(selectStatement, selectParams, selectCallback);
+    if (duplicateCaught) {
+      return next(409);
+    }
+  });
+
+  // TODO: input validation
+
+  const statement = 'INSERT INTO pets ( name, type, breed, location, latitude, longitude ) VALUES ( $name, $type, $breed, $location, $latitude, $longitude );';
+  const params = {
+    $name: name,
+    $type: type,
+    $breed: breed,
+    $location: location,
+    $latitude: latitude,
+    $longitude: longitude
+  };
+  const callback = ((error) => {
+    if (error) {
+      console.log(error);
+      db.close();
+      res.status(503).send('error');
+      res.end();
+    }
+
+    // what, still here? Let's give you some data
+    console.log('Record inserted.');
+    const innerSelectStatement = 'SELECT * FROM pets WHERE name = ? AND latitude = ? AND longitude = ? LIMIT 1';
+    const innerSelectParams = [ name, latitude, longitude];
+    const innerSelectCallback = ( (err, row) => {
+      console.log(err);
+      db.close();
+      res.send(row || err );
+      res.end();
+    });
+
+    db.get(selectStatement, selectParams, selectCallback);
+  });
+
+  db.serialize( () => {
+    db.run(statement, params, callback);
+  });
+});
 
 const dbInstance = (() => {
   return new sqlite3.Database('./db/pets.sqlite3');
@@ -26,35 +102,6 @@ const initDb = (() => {
 
   console.log('db initialized');
   db.close();
-});
-
-app.get('/', (req, res) => {
-  res.send('Hello world!');
-});
-
-app.post('/pets', (req, res) => {
-  const db = dbInstance();
-
-  db.serialize( () => {
-    // const insertPetStatement = db.prepare('INSERT INTO pets VALUES (?)');
-      db.run(
-        'INSERT INTO pets'
-        + ' ( name, type, breed, location, latitude, longitude )'
-        + ' VALUES ( $name, $type, $breed, $location, $latitude, $longitude );', {
-          $name: "test",
-          $type: "test",
-          $breed: "test",
-          $location: "test",
-          $latitude: 123.456,
-          $longitude: 654.321
-        }, (error) => {
-        console.log(`record was${ error ? ' not ' : ' '}inserted`);
-      });
-  });
-
-  db.close();
-  // return some sort of JSON...?
-
 });
 
 app.listen(3000, () => {
