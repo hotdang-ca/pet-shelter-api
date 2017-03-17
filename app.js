@@ -3,45 +3,34 @@ const bodyParser  = require('body-parser');
 const sqlite3     = require('sqlite3').verbose();
 
 const app = express();
-
 app.use(bodyParser.json());
-// app.use((req, res, next) => {
-//   // express needs a little nudge.. i guess...
-//   console.log('middleware is draining...');
-//   next();
-// });
 
-app.get('/', (req, res) => {
+app.get('/', (req, res, next) => {
   res.send('Hello world!');
+  // next();
 });
 
 app.post('/pets', (req, res, next) => {
   const db = dbInstance();
   const { name, type, breed, location, latitude, longitude } = req.body;
 
-  let duplicateCaught = false;
   // IS THERE ALREADY A RECORD?
   // TODO: actually refactor to get OUT OF HERE when there is another record of same
-  const selectStatement = 'SELECT * FROM pets WHERE name = ? AND latitude = ? AND longitude = ? LIMIT 1';
-  const selectParams = [ name, latitude, longitude];
-  const selectCallback = ( (err, row) => {
-    if (row) {
-      db.close();
-      console.log("Sending 409 Already Exists");
-      res.status(409).send("already exists");
-      // and, somehow get OUT of here...
-      duplicateCaught = true;
-    }
-  });
-  db.serialize(() => {
+  const isADuplicatePromise = new Promise((resolve, reject) => {
+    const selectStatement = 'SELECT * FROM pets WHERE name = ? AND latitude = ? AND longitude = ? LIMIT 1';
+    const selectParams = [ name, latitude, longitude];
+    const selectCallback = ( (err, row) => {
+      if (row) {
+        reject({code: 409, error: '409 Record Already Exists.'});
+      } else {
+        resolve();
+      }
+    });
+
     db.get(selectStatement, selectParams, selectCallback);
-    if (duplicateCaught) {
-      return next(409);
-    }
   });
 
   // TODO: input validation
-
   const statement = 'INSERT INTO pets ( name, type, breed, location, latitude, longitude ) VALUES ( $name, $type, $breed, $location, $latitude, $longitude );';
   const params = {
     $name: name,
@@ -53,28 +42,27 @@ app.post('/pets', (req, res, next) => {
   };
   const callback = ((error) => {
     if (error) {
-      console.log(error);
-      db.close();
-      res.status(503).send('error');
-      res.end();
+      return next({code: 503, error: '503 DB Error'});
+    } else {
+      // what, still here? Let's give you some data
+      const innerSelectStatement = 'SELECT * FROM pets WHERE name = ? AND latitude = ? AND longitude = ? LIMIT 1';
+      const innerSelectParams = [ name, latitude, longitude];
+      const innerSelectCallback = ( (err, row) => {
+        res.send(row || err);
+      });
+
+      db.get(innerSelectStatement, innerSelectParams, innerSelectCallback);
     }
-
-    // what, still here? Let's give you some data
-    console.log('Record inserted.');
-    const innerSelectStatement = 'SELECT * FROM pets WHERE name = ? AND latitude = ? AND longitude = ? LIMIT 1';
-    const innerSelectParams = [ name, latitude, longitude];
-    const innerSelectCallback = ( (err, row) => {
-      console.log(err);
-      db.close();
-      res.send(row || err );
-      res.end();
-    });
-
-    db.get(selectStatement, selectParams, selectCallback);
   });
 
   db.serialize( () => {
-    db.run(statement, params, callback);
+    isADuplicatePromise.then( (result) => {
+      db.run(statement, params, callback);
+      db.close();
+    }).catch( (err) => {
+      db.close();
+      next(err);
+    });
   });
 });
 
@@ -102,6 +90,15 @@ const initDb = (() => {
 
   console.log('db initialized');
   db.close();
+});
+
+app.use((err, req, res, next) => {
+  console.log('middleware is draining...');
+  if (err) {
+    res.status(err.code).send(err);
+  } else {
+    next();
+  }
 });
 
 app.listen(3000, () => {
