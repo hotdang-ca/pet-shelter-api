@@ -74,13 +74,13 @@ app.get('/pets/:id', (req, res, next) => {
 
 app.post('/pets', (req, res, next) => {
   const db = dbInstance();
-  const { name, type, breed, location, latitude, longitude } = req.body;
+  const { name, type_id, breed_id, location, latitude, longitude } = req.body;
 
   // IS THERE ALREADY A RECORD?
   // TODO: actually refactor to get OUT OF HERE when there is another record of same
   const isADuplicatePromise = new Promise((resolve, reject) => {
-    const selectStatement = 'SELECT * FROM pets WHERE name = ? AND latitude = ? AND longitude = ? LIMIT 1';
-    const selectParams = [ name, latitude, longitude];
+    const selectStatement = 'SELECT * FROM pets WHERE name = ? AND type_id = ?';
+    const selectParams = [ name, type_id];
     const selectCallback = ( (err, row) => {
       if (row) {
         reject({code: 409, error: '409 Record Already Exists.'});
@@ -96,8 +96,8 @@ app.post('/pets', (req, res, next) => {
   const statement = 'INSERT INTO pets ( name, type_id, breed_id, location, latitude, longitude ) VALUES ( $name, $typeId, $breedId, $location, $latitude, $longitude );';
   const params = {
     $name: name,
-    $typeId: typeId,
-    $breedId: breedId,
+    $typeId: type_id,
+    $breedId: breed_id,
     $location: location,
     $latitude: latitude,
     $longitude: longitude
@@ -108,8 +108,8 @@ app.post('/pets', (req, res, next) => {
     } else {
       // what, still here? Let's give you some data
       // TODO: update to spec
-      const innerSelectStatement = 'SELECT * FROM pets WHERE name = ? AND latitude = ? AND longitude = ? LIMIT 1';
-      const innerSelectParams = [ name, latitude, longitude];
+      const innerSelectStatement = 'SELECT * FROM pets WHERE name = ? AND latitude = ? AND longitude = ? AND BREED_ID = ? AND TYPE_ID = ? LIMIT 1';
+      const innerSelectParams = [ name, latitude, longitude, breed_id, type_id ];
       const innerSelectCallback = ( (err, row) => {
         res.send(row || err);
       });
