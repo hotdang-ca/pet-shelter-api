@@ -12,14 +12,15 @@ app.get('/', (req, res, next) => {
 
 app.get('/pets/:id', (req, res, next) => {
   const { id } = req.params;
-  const db = dbInstance();
-  const selectStatement = 'SELECT * FROM pets WHERE id = ? LIMIT 1';
+  const db = dbInstance(); // TODO: get this innerjoin working with the sql library
+  const selectStatement = 'SELECT pets.type_id, pets.breed_id, types.name, breeds.name, pets.name, pets.location, pets.latitude, pets.longitude FROM pets JOIN breeds ON pets.breed_id = breeds.id JOIN types ON pets.type_id = types.id WHERE pets.id = ?';
   const selectParams = [ id ];
-  const selectCallback = ((error, rows) => {
-    if (!rows) {
+  const selectCallback = ((error, row) => {
+    console.log(row);
+    if (!row) {
       res.status(404).send({code: 404, error: 'Not found' });
     } else {
-      res.send(rows);
+      res.send(row);
     }
     next();
   });
@@ -62,6 +63,7 @@ app.post('/pets', (req, res, next) => {
       return next({code: 503, error: '503 DB Error'});
     } else {
       // what, still here? Let's give you some data
+      // TODO: update to spec
       const innerSelectStatement = 'SELECT * FROM pets WHERE name = ? AND latitude = ? AND longitude = ? LIMIT 1';
       const innerSelectParams = [ name, latitude, longitude];
       const innerSelectCallback = ( (err, row) => {
