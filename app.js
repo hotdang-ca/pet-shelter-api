@@ -10,16 +10,31 @@ app.get('/', (req, res, next) => {
   // next();
 });
 
-app.get('/pets/:id', (req, res, next) => {
-  const { id } = req.params;
+app.get('/pets', (req, res, next) => {
   const db = dbInstance();
-  const selectStatement = 'SELECT * FROM pets WHERE id = ? LIMIT 1';
-  const selectParams = [ id ];
+  const selectStatement = 'SELECT * FROM pets';
+  const selectParams = [];
   const selectCallback = ((error, rows) => {
     if (!rows) {
       res.status(404).send({code: 404, error: 'Not found' });
     } else {
       res.send(rows);
+    }
+    next();
+  });
+  db.all(selectStatement, selectParams, selectCallback);
+});
+
+app.get('/pets/:id', (req, res, next) => {
+  const { id } = req.params;
+  const db = dbInstance();
+  const selectStatement = 'SELECT * FROM pets WHERE id = ? LIMIT 1';
+  const selectParams = [ id ];
+  const selectCallback = ((error, row) => {
+    if (!row) {
+      res.status(404).send({code: 404, error: 'Not found' });
+    } else {
+      res.send(row);
     }
     next();
   });
