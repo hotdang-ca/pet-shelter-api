@@ -10,6 +10,36 @@ app.get('/', (req, res, next) => {
   // next();
 });
 
+app.get('/types', (req, res, next) => {
+  const db = dbInstance();
+  const selectStatement = 'SELECT * FROM types';
+  const selectParams = [];
+  const selectCallback = ((error, rows) => {
+    if (!rows) {
+      res.status(404).send({code: 404, error: 'Not found' });
+    } else {
+      res.send(rows);
+    }
+    next();
+  });
+  db.all(selectStatement, selectParams, selectCallback);
+});
+
+app.get('/breeds', (req, res, next) => {
+  const db = dbInstance();
+  const selectStatement = 'SELECT * FROM breeds';
+  const selectParams = [];
+  const selectCallback = ((error, rows) => {
+    if (!rows) {
+      res.status(404).send({code: 404, error: 'Not found' });
+    } else {
+      res.send(rows);
+    }
+    next();
+  });
+  db.all(selectStatement, selectParams, selectCallback);
+});
+
 app.get('/pets', (req, res, next) => {
   const db = dbInstance();
   const selectStatement = 'SELECT * FROM pets';
@@ -130,24 +160,24 @@ const initDb = (() => {
     );
 
     // TODO: breeds should be dependent on type
-    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Pug\', 1)');
-    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Poodle\', 1)');
-    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'German Shepherd\', 1)');
-    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Rotweiler\', 1)');
+    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (1, \'Pug\', 1)');
+    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (2, \'Poodle\', 1)');
+    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (3, \'German Shepherd\', 1)');
+    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (4, \'Rotweiler\', 1)');
 
-    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Calico\', 2)');
-    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Tabby\', 2)');
-    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Tiger\', 2)');
-    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Siamese\', 2)');
+    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (5, \'Calico\', 2)');
+    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (6, \'Tabby\', 2)');
+    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (7, \'Tiger\', 2)');
+    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (8, \'Siamese\', 2)');
 
-    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Pidgeon\', 3)');
-    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Parrot\', 3)');
-    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Turkey\', 3)');
-    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Penguin\', 3)');
+    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (9, \'Pidgeon\', 3)');
+    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (10, \'Parrot\', 3)');
+    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (11, \'Turkey\', 3)');
+    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (12, \'Penguin\', 3)');
 
-    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Gerbel\', 4)');
-    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Pikachu\', 4)');
-    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Mouse\', 4)');
+    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (13, \'Gerbel\', 4)');
+    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (14, \'Pikachu\', 4)');
+    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (15, \'Mouse\', 4)');
 
     db.run(
       'CREATE TABLE IF NOT EXISTS types'
