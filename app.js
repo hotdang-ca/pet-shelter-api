@@ -48,11 +48,11 @@ app.post('/pets', (req, res, next) => {
   });
 
   // TODO: input validation
-  const statement = 'INSERT INTO pets ( name, type, breed, location, latitude, longitude ) VALUES ( $name, $type, $breed, $location, $latitude, $longitude );';
+  const statement = 'INSERT INTO pets ( name, type_id, breed_id, location, latitude, longitude ) VALUES ( $name, $typeId, $breedId, $location, $latitude, $longitude );';
   const params = {
     $name: name,
-    $type: type,
-    $breed: breed,
+    $typeId: typeId,
+    $breedId: breedId,
     $location: location,
     $latitude: latitude,
     $longitude: longitude
@@ -96,13 +96,56 @@ const initDb = (() => {
     + '('
     + 'id INTEGER PRIMARY KEY,'
     + 'name TEXT,'
-    + 'type TEXT,'
-    + 'breed TEXT,'
+    + 'type_id INTEGER,'
+    + 'breed_id INTEGER,'
     + 'location TEXT,'
     + 'latitude DOUBLE,'
     + 'longitude DOUBLE'
     + ')'
     );
+
+    db.run(
+      'CREATE TABLE IF NOT EXISTS breeds '
+    + '('
+    + 'id INTEGER PRIMARY KEY,'
+    + 'name TEXT,'
+    + 'type_id INTEGER'
+    + ')'
+    );
+
+    // TODO: breeds should be dependent on type
+    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Pug\', 1)');
+    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Poodle\', 1)');
+    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'German Shepherd\', 1)');
+    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Rotweiler\', 1)');
+
+    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Calico\', 2)');
+    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Tabby\', 2)');
+    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Tiger\', 2)');
+    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Siamese\', 2)');
+
+    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Pidgeon\', 3)');
+    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Parrot\', 3)');
+    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Turkey\', 3)');
+    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Penguin\', 3)');
+
+    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Gerbel\', 4)');
+    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Pikachu\', 4)');
+    db.run('INSERT OR REPLACE INTO breeds (name, type_id) VALUES (\'Mouse\', 4)');
+
+    db.run(
+      'CREATE TABLE IF NOT EXISTS types'
+    + '('
+    + 'id INTEGER PRIMARY KEY,'
+    + 'name TEXT'
+    + ')'
+    );
+
+    db.run('INSERT OR REPLACE INTO types (id, name) VALUES (1, \'Dog\')');
+    db.run('INSERT OR REPLACE INTO types (id, name) VALUES (2, \'Cat\')');
+    db.run('INSERT OR REPLACE INTO types (id, name) VALUES (3, \'Bird\')');
+    db.run('INSERT OR REPLACE INTO types (id, name) VALUES (4, \'Rodent\')');
+
   });
 
   console.log('db initialized');
