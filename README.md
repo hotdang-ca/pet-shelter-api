@@ -10,9 +10,13 @@ After first assuring your NodeJS set up is up-to-date, you can perform the follo
 
 ## Endpoints
 The project describes a variety of REST activities at the following endpoints:
+
 `GET /`	- root, nothing for now
+
 `GET /breeds`	- get a list of breeds the platform currently supports
+
 `GET /types`	- get a list of pet types the platform currently supports
+
 `GET /pets`	- get a list of pets and their information
 
 `POST /pets`	- create a new pet. Requires the following JSON body:
