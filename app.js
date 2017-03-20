@@ -3,7 +3,7 @@ const bodyParser  = require('body-parser');
 const sqlite3     = require('sqlite3').verbose();
 const pg          = require('pg');
 
-const CONNECTION_STRING = 'postgres://jperih:@localhost/petshelterapi';
+const CONNECTION_STRING = process.env.DATABASE_URL || 'postgres://jperih:@localhost/petshelterapi';
 
 const app = express();
 app.use(bodyParser.json());
