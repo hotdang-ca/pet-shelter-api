@@ -202,8 +202,7 @@ app.use((err, req, res, next) => {
 });
 
 const HTTP_PORT = process.env.PORT || 3000;
-
-app.listen(HTTP_PORT), () => {
+app.listen(HTTP_PORT, () => {
   initDb();
   console.log(`Example app listening on port ${HTTP_PORT}`);
 });
