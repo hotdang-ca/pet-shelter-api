@@ -1,201 +1,195 @@
 const express     = require('express');
 const bodyParser  = require('body-parser');
 const sqlite3     = require('sqlite3').verbose();
+const pg          = require('pg');
+
+const CONNECTION_STRING = 'postgres://jperih:@localhost/petshelterapi';
 
 const app = express();
 app.use(bodyParser.json());
 
 app.get('/', (req, res, next) => {
   res.send('Hello world!');
-  // next();
+  next();
 });
 
 app.get('/types', (req, res, next) => {
-  const db = dbInstance();
-  const selectStatement = 'SELECT * FROM types';
-  const selectParams = [];
-  const selectCallback = ((error, rows) => {
-    if (!rows) {
-      res.status(404).send({code: 404, error: 'Not found' });
-    } else {
-      res.send(rows);
-    }
-    next();
+  pg.connect(CONNECTION_STRING, (err, client, done) => {
+    const selectStatement = 'SELECT * FROM types';
+    const selectParams = [];
+    client.query(selectStatement, selectParams, (err, result) => {
+      if (!result.rows) {
+        res.status(404).send({code: 404, error: 'Not found' });
+      } else {
+        res.status(200).send(result.rows);
+      }
+      done();
+      next();
+    });
   });
-  db.all(selectStatement, selectParams, selectCallback);
 });
 
 app.get('/breeds', (req, res, next) => {
-  const db = dbInstance();
-  const selectStatement = 'SELECT * FROM breeds';
-  const selectParams = [];
-  const selectCallback = ((error, rows) => {
-    if (!rows) {
-      res.status(404).send({code: 404, error: 'Not found' });
-    } else {
-      res.send(rows);
-    }
-    next();
+  pg.connect(CONNECTION_STRING, (err, client, done) => {
+    const selectStatement = 'SELECT * FROM breeds';
+    const selectParams = [];
+    client.query(selectStatement, selectParams, (err, result) => {
+      if (!result.rows) {
+        res.status(404).send({code: 404, error: 'Not found' });
+      } else {
+        res.status(200).send(result.rows);
+      }
+      done();
+      next();
+    });
   });
-  db.all(selectStatement, selectParams, selectCallback);
 });
 
 app.get('/pets', (req, res, next) => {
-  const db = dbInstance();
-  const selectStatement = 'SELECT * FROM pets';
-  const selectParams = [];
-  const selectCallback = ((error, rows) => {
-    if (!rows) {
-      res.status(404).send({code: 404, error: 'Not found' });
-    } else {
-      res.send(rows);
-    }
-    next();
+  pg.connect(CONNECTION_STRING, (err, client, done) => {
+    const selectStatement = 'SELECT * FROM pets';
+    const selectParams = [];
+    client.query(selectStatement, selectParams, (err, result) => {
+      if (!result.rows) {
+        res.status(404).send({code: 404, error: 'Not found' });
+      } else {
+        res.status(200).send(result.rows);
+      }
+
+      done();
+      next();
+    });
   });
-  db.all(selectStatement, selectParams, selectCallback);
 });
 
 app.get('/pets/:id', (req, res, next) => {
   const { id } = req.params;
-  const db = dbInstance(); // TODO: get this innerjoin working with the sql library
-  const selectStatement = 'SELECT pets.type_id, pets.breed_id, types.name, breeds.name, pets.name, pets.location, pets.latitude, pets.longitude FROM pets JOIN breeds ON pets.breed_id = breeds.id JOIN types ON pets.type_id = types.id WHERE pets.id = ?';
-  const selectParams = [ id ];
-  const selectCallback = ((error, row) => {
-    if (!row) {
-      res.status(404).send({code: 404, error: 'Not found' });
-    } else {
-      res.send(row);
-    }
-    next();
-  });
 
-  db.get(selectStatement, selectParams, selectCallback);
+  pg.connect(CONNECTION_STRING, (err, client, done) => {
+    const selectStatement = 'SELECT pets.type_id, pets.breed_id, types.name, breeds.name, pets.name, pets.location, pets.latitude, pets.longitude FROM pets JOIN breeds ON pets.breed_id = breeds.id JOIN types ON pets.type_id = types.id WHERE pets.id = ?';
+    const selectParams = [];
+    client.query(selectStatement, selectParams, (err, result) => {
+      if (!result) {
+        res.status(404).send({code: 404, error: 'Not found' });
+      } else {
+        res.status(200).send(result);
+      }
+
+      done();
+      next();
+    });
+  });
 });
 
 app.post('/pets', (req, res, next) => {
-  const db = dbInstance();
   const { name, type_id, breed_id, location, latitude, longitude } = req.body;
 
   // IS THERE ALREADY A RECORD?
   // TODO: actually refactor to get OUT OF HERE when there is another record of same
   const isADuplicatePromise = new Promise((resolve, reject) => {
-    const selectStatement = 'SELECT * FROM pets WHERE name = ? AND type_id = ?';
-    const selectParams = [ name, type_id];
-    const selectCallback = ( (err, row) => {
-      if (row) {
-        reject({code: 409, error: '409 Record Already Exists.'});
-      } else {
-        resolve();
-      }
-    });
+    pg.connect(CONNECTION_STRING, (err, client, done) => {
+      const selectStatement = 'SELECT * FROM pets WHERE name = $1 AND type_id = $2';
+      const selectParams = [ name, type_id ];
+      const selectCallback = ( (err, result, done) => {
 
-    db.get(selectStatement, selectParams, selectCallback);
+        if (result.rowCount > 0) {
+          reject({code: 409, error: '409 Record Already Exists.'});
+        } else {
+          resolve();
+        }
+      });
+      client.query(selectStatement, selectParams, selectCallback);
+    });
   });
 
   // TODO: input validation
-  const statement = 'INSERT INTO pets ( name, type_id, breed_id, location, latitude, longitude ) VALUES ( $name, $typeId, $breedId, $location, $latitude, $longitude );';
-  const params = {
-    $name: name,
-    $typeId: type_id,
-    $breedId: breed_id,
-    $location: location,
-    $latitude: latitude,
-    $longitude: longitude
-  };
-  const callback = ((error) => {
-    if (error) {
-      return next({code: 503, error: '503 DB Error'});
-    } else {
-      // what, still here? Let's give you some data
-      // TODO: update to spec
-      const innerSelectStatement = 'SELECT * FROM pets WHERE name = ? AND latitude = ? AND longitude = ? AND BREED_ID = ? AND TYPE_ID = ? LIMIT 1';
-      const innerSelectParams = [ name, latitude, longitude, breed_id, type_id ];
-      const innerSelectCallback = ( (err, row) => {
-        res.send(row || err);
+  const statement = 'INSERT INTO pets ( name, type_id, breed_id, location, latitude, longitude ) VALUES ( $1, $2, $3, $4, $5, $6 );';
+  const params = [ name, type_id, breed_id, location, latitude, longitude ];
+
+  isADuplicatePromise.then( (result) => {
+    pg.connect(CONNECTION_STRING, (err, client, done) => {
+      const callback = ((error) => {
+        if (error) {
+          return next({code: 503, error: error});
+        } else {
+          // what, still here? Let's give you some data
+          pg.connect(CONNECTION_STRING, (err, result, done) => {
+            const innerSelectStatement = 'SELECT * FROM pets WHERE name = $1 AND latitude = $2 AND longitude = $3 AND BREED_ID = $4 AND TYPE_ID = $5 LIMIT 1';
+            const innerSelectParams = [ name, latitude, longitude, breed_id, type_id ];
+            const innerSelectCallback = ( (err, row, done) => {
+              res.send(row.rows[0] || err);
+            });
+            client.query(innerSelectStatement, innerSelectParams, innerSelectCallback);
+          });
+        }
       });
-
-      db.get(innerSelectStatement, innerSelectParams, innerSelectCallback);
-    }
-  });
-
-  db.serialize( () => {
-    isADuplicatePromise.then( (result) => {
-      db.run(statement, params, callback);
-      db.close();
-    }).catch( (err) => {
-      db.close();
-      next(err);
+      client.query(statement, params, callback);
     });
+  }).catch( (err) => {
+    next(err);
   });
-});
-
-const dbInstance = (() => {
-  return new sqlite3.Database('./db/pets.sqlite3');
 });
 
 const initDb = (() => {
-  const db = dbInstance();
-
-  db.serialize( () => { // inline string
-    db.run(
+  pg.connect(CONNECTION_STRING, (err, client, done) => {
+    client.query(
       'CREATE TABLE IF NOT EXISTS pets '
-    + '('
-    + 'id INTEGER PRIMARY KEY,'
-    + 'name TEXT,'
-    + 'type_id INTEGER,'
-    + 'breed_id INTEGER,'
-    + 'location TEXT,'
-    + 'latitude DOUBLE,'
-    + 'longitude DOUBLE'
-    + ')'
+      + '('
+      + 'id SERIAL,'
+      + 'name TEXT,'
+      + 'type_id INT,'
+      + 'breed_id INT,'
+      + 'location TEXT,'
+      + 'latitude DOUBLE PRECISION,'
+      + 'longitude DOUBLE PRECISION'
+      + ')'
     );
 
-    db.run(
+    client.query(
       'CREATE TABLE IF NOT EXISTS breeds '
-    + '('
-    + 'id INTEGER PRIMARY KEY,'
-    + 'name TEXT,'
-    + 'type_id INTEGER'
-    + ')'
+      + '('
+      + 'id INT PRIMARY KEY,'
+      + 'name TEXT,'
+      + 'type_id INT'
+      + ')'
     );
 
-    // TODO: breeds should be dependent on type
-    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (1, \'Pug\', 1)');
-    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (2, \'Poodle\', 1)');
-    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (3, \'German Shepherd\', 1)');
-    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (4, \'Rotweiler\', 1)');
-
-    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (5, \'Calico\', 2)');
-    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (6, \'Tabby\', 2)');
-    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (7, \'Tiger\', 2)');
-    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (8, \'Siamese\', 2)');
-
-    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (9, \'Pidgeon\', 3)');
-    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (10, \'Parrot\', 3)');
-    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (11, \'Turkey\', 3)');
-    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (12, \'Penguin\', 3)');
-
-    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (13, \'Gerbel\', 4)');
-    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (14, \'Pikachu\', 4)');
-    db.run('INSERT OR REPLACE INTO breeds (id, name, type_id) VALUES (15, \'Mouse\', 4)');
-
-    db.run(
+    client.query(
       'CREATE TABLE IF NOT EXISTS types'
     + '('
-    + 'id INTEGER PRIMARY KEY,'
+    + 'id INT PRIMARY KEY,'
     + 'name TEXT'
     + ')'
     );
 
-    db.run('INSERT OR REPLACE INTO types (id, name) VALUES (1, \'Dog\')');
-    db.run('INSERT OR REPLACE INTO types (id, name) VALUES (2, \'Cat\')');
-    db.run('INSERT OR REPLACE INTO types (id, name) VALUES (3, \'Bird\')');
-    db.run('INSERT OR REPLACE INTO types (id, name) VALUES (4, \'Rodent\')');
+    client.query('INSERT INTO breeds (id, name, type_id) VALUES (1, \'Pug\', 1) ON CONFLICT (id) DO NOTHING' );
+    client.query('INSERT INTO breeds (id, name, type_id) VALUES (2, \'Poodle\', 1) ON CONFLICT (id) DO NOTHING');
+    client.query('INSERT INTO breeds (id, name, type_id) VALUES (3, \'German Shepherd\', 1) ON CONFLICT (id) DO NOTHING');
+    client.query('INSERT INTO breeds (id, name, type_id) VALUES (4, \'Rotweiler\', 1) ON CONFLICT (id) DO NOTHING');
 
+    client.query('INSERT INTO breeds (id, name, type_id) VALUES (5, \'Calico\', 2) ON CONFLICT (id) DO NOTHING');
+    client.query('INSERT INTO breeds (id, name, type_id) VALUES (6, \'Tabby\', 2) ON CONFLICT (id) DO NOTHING');
+    client.query('INSERT INTO breeds (id, name, type_id) VALUES (7, \'Tiger\', 2) ON CONFLICT (id) DO NOTHING');
+    client.query('INSERT INTO breeds (id, name, type_id) VALUES (8, \'Siamese\', 2) ON CONFLICT (id) DO NOTHING');
+
+    client.query('INSERT INTO breeds (id, name, type_id) VALUES (9, \'Pidgeon\', 3) ON CONFLICT (id) DO NOTHING');
+    client.query('INSERT INTO breeds (id, name, type_id) VALUES (10, \'Parrot\', 3) ON CONFLICT (id) DO NOTHING');
+    client.query('INSERT INTO breeds (id, name, type_id) VALUES (11, \'Turkey\', 3) ON CONFLICT (id) DO NOTHING');
+    client.query('INSERT INTO breeds (id, name, type_id) VALUES (12, \'Penguin\', 3) ON CONFLICT (id) DO NOTHING');
+
+    client.query('INSERT INTO breeds (id, name, type_id) VALUES (13, \'Gerbel\', 4) ON CONFLICT (id) DO NOTHING');
+    client.query('INSERT INTO breeds (id, name, type_id) VALUES (14, \'Pikachu\', 4) ON CONFLICT (id) DO NOTHING');
+    client.query('INSERT INTO breeds (id, name, type_id) VALUES (15, \'Mouse\', 4) ON CONFLICT (id) DO NOTHING');
+
+    client.query('INSERT INTO types (id, name) VALUES (1, \'Dog\') ON CONFLICT (id) DO NOTHING');
+    client.query('INSERT INTO types (id, name) VALUES (2, \'Cat\') ON CONFLICT (id) DO NOTHING');
+    client.query('INSERT INTO types (id, name) VALUES (3, \'Bird\') ON CONFLICT (id) DO NOTHING');
+    client.query('INSERT INTO types (id, name) VALUES (4, \'Rodent\') ON CONFLICT (id) DO NOTHING');
+
+    console.log('db initialized');
+
+    done();
   });
-
-  console.log('db initialized');
-  db.close();
 });
 
 app.use((err, req, res, next) => {
