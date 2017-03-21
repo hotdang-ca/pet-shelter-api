@@ -13,6 +13,24 @@ app.get('/', (req, res, next) => {
   next();
 });
 
+app.get('/weather', (req, res, next) => {
+  const APIKEY = '82dd8ad9b17dd32e59ea45bab4892856';
+  const latitude = 49.895077;
+  const longitude = -97.138451;
+  res.send('getting weather...');
+  axios.get(`https://api.darksky.net/forecast/${APIKEY}/${longitude},${latitude}`)
+  .then((response) => {
+    console.log(response.data);
+    res.send(response);
+    next();
+  })
+  .catch((error) => {
+    console.log(error);
+    res.send(error);
+    next();
+  });
+});
+
 app.get('/types', (req, res, next) => {
   pg.connect(CONNECTION_STRING, (err, client, done) => {
     const selectStatement = 'SELECT * FROM types';
@@ -47,7 +65,7 @@ app.get('/breeds', (req, res, next) => {
 
 app.get('/pets', (req, res, next) => {
   pg.connect(CONNECTION_STRING, (err, client, done) => {
-    const selectStatement = 'SELECT * FROM pets';
+    const selectStatement = 'SELECT pets.id, pets.name, pets.location, pets.latitude, pets.longitude, types.name AS type, breeds.name AS breed FROM pets INNER JOIN types ON (pets.type_id = types.id) INNER JOIN breeds ON (pets.breed_id = breeds.id)';
     const selectParams = [];
     client.query(selectStatement, selectParams, (err, result) => {
       if (!result.rows) {
@@ -66,13 +84,13 @@ app.get('/pets/:id', (req, res, next) => {
   const { id } = req.params;
 
   pg.connect(CONNECTION_STRING, (err, client, done) => {
-    const selectStatement = 'SELECT pets.type_id, pets.breed_id, types.name, breeds.name, pets.name, pets.location, pets.latitude, pets.longitude FROM pets JOIN breeds ON pets.breed_id = breeds.id JOIN types ON pets.type_id = types.id WHERE pets.id = ?';
-    const selectParams = [];
+    const selectStatement = 'SELECT pets.id, pets.name, pets.location, pets.latitude, pets.longitude, types.name AS type, breeds.name AS breed FROM pets INNER JOIN types ON (pets.type_id = types.id) INNER JOIN breeds ON (pets.breed_id = breeds.id) WHERE pets.id = $1';
+    const selectParams = [ id ];
     client.query(selectStatement, selectParams, (err, result) => {
       if (!result) {
         res.status(404).send({code: 404, error: 'Not found' });
       } else {
-        res.status(200).send(result);
+        res.status(200).send(result.rows[0]);
       }
 
       done();
@@ -201,7 +219,7 @@ app.use((err, req, res, next) => {
   }
 });
 
-const HTTP_PORT = process.env.PORT || 3000;
+const HTTP_PORT = process.env.PORT || 5000;
 app.listen(HTTP_PORT, () => {
   initDb();
   console.log(`Example app listening on port ${HTTP_PORT}`);
