@@ -8,6 +8,9 @@ const CONNECTION_STRING = process.env.DATABASE_URL || 'postgres://jperih:@localh
 const app = express();
 app.use(bodyParser.json());
 
+/**
+ * Header setup to allow cross-domain resource sharing
+ */
 const allowCrossDomain = ((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
@@ -23,29 +26,17 @@ const allowCrossDomain = ((req, res, next) => {
 });
 app.use(allowCrossDomain);
 
+/**
+ * Root Path
+ */
 app.get('/', (req, res, next) => {
-  res.send('Hello world!');
+  res.send({status: 'a-okay!'});
   next();
 });
 
-app.get('/weather', (req, res, next) => {
-  const APIKEY = '82dd8ad9b17dd32e59ea45bab4892856';
-  const latitude = 49.895077;
-  const longitude = -97.138451;
-  res.send('getting weather...');
-  axios.get(`https://api.darksky.net/forecast/${APIKEY}/${longitude},${latitude}`)
-  .then((response) => {
-    console.log(response.data);
-    res.send(response);
-    next();
-  })
-  .catch((error) => {
-    console.log(error);
-    res.send(error);
-    next();
-  });
-});
-
+/**
+ * GET pet types
+ */
 app.get('/types', (req, res, next) => {
   pg.connect(CONNECTION_STRING, (err, client, done) => {
     const selectStatement = 'SELECT * FROM types';
@@ -62,6 +53,9 @@ app.get('/types', (req, res, next) => {
   });
 });
 
+/**
+ * GET pet breeds
+ */
 app.get('/breeds', (req, res, next) => {
   pg.connect(CONNECTION_STRING, (err, client, done) => {
     const selectStatement = 'SELECT * FROM breeds';
@@ -78,6 +72,9 @@ app.get('/breeds', (req, res, next) => {
   });
 });
 
+/**
+ * GET all pets
+ */
 app.get('/pets', (req, res, next) => {
   pg.connect(CONNECTION_STRING, (err, client, done) => {
     const selectStatement = 'SELECT pets.id, pets.name, pets.location, pets.latitude, pets.longitude, types.name AS type, breeds.name AS breed FROM pets INNER JOIN types ON (pets.type_id = types.id) INNER JOIN breeds ON (pets.breed_id = breeds.id)';
@@ -95,6 +92,9 @@ app.get('/pets', (req, res, next) => {
   });
 });
 
+/**
+ * GET pet by ID
+ */
 app.get('/pets/:id', (req, res, next) => {
   const { id } = req.params;
 
@@ -114,11 +114,16 @@ app.get('/pets/:id', (req, res, next) => {
   });
 });
 
+/**
+ * POST a pet
+ *  Requires application/json in the following format:
+ *  {name: String, type_id: Integer, breed_id: Integer, location: String, latitude: double, longitude: double}
+ *  Returns the data as it exists in the database, or a HTTP 409 if there is a duplicate
+ */
 app.post('/pets', (req, res, next) => {
   const { name, type_id, breed_id, location, latitude, longitude } = req.body;
 
   // IS THERE ALREADY A RECORD?
-  // TODO: actually refactor to get OUT OF HERE when there is another record of same
   const isADuplicatePromise = new Promise((resolve, reject) => {
     pg.connect(CONNECTION_STRING, (err, client, done) => {
       const selectStatement = 'SELECT * FROM pets WHERE name = $1 AND type_id = $2';
@@ -135,7 +140,7 @@ app.post('/pets', (req, res, next) => {
     });
   });
 
-  // TODO: input validation
+  // TODO: input validation. There is client-side validation
   const statement = 'INSERT INTO pets ( name, type_id, breed_id, location, latitude, longitude ) VALUES ( $1, $2, $3, $4, $5, $6 );';
   const params = [ name, type_id, breed_id, location, latitude, longitude ];
 
@@ -163,6 +168,9 @@ app.post('/pets', (req, res, next) => {
   });
 });
 
+/**
+ * Database initialization and seeding
+ */
 const initDb = (() => {
   pg.connect(CONNECTION_STRING, (err, client, done) => {
     client.query(
@@ -237,5 +245,5 @@ app.use((err, req, res, next) => {
 const HTTP_PORT = process.env.PORT || 5000;
 app.listen(HTTP_PORT, () => {
   initDb();
-  console.log(`Example app listening on port ${HTTP_PORT}`);
+  console.log(`Pet Shelter API listening on port ${HTTP_PORT}`);
 });
