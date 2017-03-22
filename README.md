@@ -32,9 +32,10 @@ The project describes a variety of REST activities at the following endpoints:
 ```
 
 ## TODO
-* Restore JOINS in the database commands; the SQLite driver used a previous revision did not support the cross-reference of column data for LEFT or INNER joins. Now that the system relies on Postgres, this may have changed.
+* -Restore JOINS in the database commands; the SQLite driver used a previous revision did not support the cross-reference of column data for LEFT or INNER joins. Now that the system relies on Postgres, this may have changed.- This is actually done.
 * Use better ExpressJS development patterns. I literally learned ExpressJS over the course of a few hours; this is the result.
 * Use better local environment variables; there is a placeholder .ENV file for which to set these; it didn’t seem too important at the time.
+* Investigate why the Heroku instance keeps stalling from time to time, requiring a Dynos Restart.
 
 ## License
 Copyright 2017 James Robert Perih
