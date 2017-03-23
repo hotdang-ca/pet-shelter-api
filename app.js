@@ -11,6 +11,7 @@ app.use(bodyParser.json());
 /**
  * Header setup to allow cross-domain resource sharing
  */
+// #1
 const allowCrossDomain = ((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
@@ -124,6 +125,7 @@ app.post('/pets', (req, res, next) => {
   const { name, type_id, breed_id, location, latitude, longitude } = req.body;
 
   // IS THERE ALREADY A RECORD?
+  // #2
   const isADuplicatePromise = new Promise((resolve, reject) => {
     pg.connect(CONNECTION_STRING, (err, client, done) => {
       const selectStatement = 'SELECT * FROM pets WHERE name = $1 AND type_id = $2';
@@ -152,6 +154,7 @@ app.post('/pets', (req, res, next) => {
         } else {
           // what, still here? Let's give you some data
           pg.connect(CONNECTION_STRING, (err, result, done) => {
+            // #3
             const innerSelectStatement = 'SELECT * FROM pets WHERE name = $1 AND latitude = $2 AND longitude = $3 AND BREED_ID = $4 AND TYPE_ID = $5 LIMIT 1';
             const innerSelectParams = [ name, latitude, longitude, breed_id, type_id ];
             const innerSelectCallback = ( (err, row, done) => {
@@ -173,6 +176,7 @@ app.post('/pets', (req, res, next) => {
  */
 const initDb = (() => {
   pg.connect(CONNECTION_STRING, (err, client, done) => {
+    // #4
     client.query(
       'CREATE TABLE IF NOT EXISTS pets '
       + '('
@@ -234,6 +238,7 @@ const initDb = (() => {
 });
 
 app.use((err, req, res, next) => {
+  // #5
   console.log('middleware is draining...');
   if (err) {
     res.status(err.code).send(err);
